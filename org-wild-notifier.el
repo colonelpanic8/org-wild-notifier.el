@@ -5,7 +5,7 @@
 
 ;; Author: Artem Khramov <akhramov+emacs@pm.me>
 ;; Created: 6 Jan 2017
-;; Version: 0.5.0
+;; Version: 0.6.0
 ;; Package-Requires: ((alert "1.2") (async "1.9.3") (dash "2.18.0") (emacs "27.1"))
 ;; Keywords: calendar, convenience
 ;; URL: https://github.com/colonelpanic8/org-wild-notifier.el
@@ -75,7 +75,7 @@ Value should be one or more org timestamps, e.g.:
   <2024-01-21 14:30>
   <2024-01-21 14:30> <2024-01-22 09:00>
   <2024-01-21 14:30 +1d>  ; repeating daily"
-  :package-version '(org-wild-notifier . "0.5.0")
+  :package-version '(org-wild-notifier . "0.6.0")
   :group 'org-wild-notifier
   :type 'string)
 
