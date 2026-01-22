@@ -4,54 +4,46 @@
 [[https://stable.melpa.org/#/org-wild-notifier][file:https://stable.melpa.org/packages/org-wild-notifier-badge.svg]]
 [[https://melpa.org/#/org-wild-notifier][file:https://melpa.org/packages/org-wild-notifier-badge.svg]]
 
-** What is it?
-A package which adds notification support for org-agenda views.
-With this package you'll get notifications for ~TODO~ entries.
+** Overview
 
-** How does it differ from existing packages?
-There are few good org agenda notification packages I'm aware of:
+org-wild-notifier provides desktop notifications for org-agenda events. It aims to behave like a typical calendar application: unobtrusive and easy to configure.
 
-- [[https://github.com/spegoraro/org-alert][org-alert]] notifies about deadlines every N minutes using [[https://github.com/jwiegley/alert][alert]] package.
-- [[https://code.orgmode.org/bzg/org-mode/raw/master/contrib/lisp/org-notify.el][org-notify]] complex, feature-rich library from Org contrib directory.
+** Comparison with Other Packages
 
-While aforementioned packages are good on their own, I wanted to have
-something that resembles popular Calendar solutions, something that'd
-be unobtrusive in use and configuration.
+- [[https://github.com/spegoraro/org-alert][org-alert]] notifies about deadlines every N minutes using the [[https://github.com/jwiegley/alert][alert]] package.
+- [[https://code.orgmode.org/bzg/org-mode/raw/master/contrib/lisp/org-notify.el][org-notify]] is a feature-rich notification library from the Org contrib directory.
 
-** Configuration?
+org-wild-notifier takes a different approach: it checks your agenda periodically and sends notifications at specific times before events, similar to how Google Calendar or other calendar applications handle reminders.
 
-Oh, yes. This package provides some configuration options:
+** Configuration
 
-| Description                                                                                          | Variable                               | Default value               |
-|------------------------------------------------------------------------------------------------------+----------------------------------------+-----------------------------|
-| Alert time in minutes                                                                                | org-wild-notifier-alert-time           | '(10)                       |
-| Title of notifications                                                                               | org-wild-notifier-notification-title   | Agenda                      |
-| Notifications icon                                                                                   | org-wild-notifier-notification-icon    | nil                         |
-| Org keyword based whitelist. You'll get notified /only/ about events specified by this variable      | org-wild-notifier-keyword-whitelist    | '("TODO")                   |
-| Org keyword based blacklist. You'll /never/ be notified about events specified by this variable      | org-wild-notifier-keyword-blacklist    | nil                         |
-| Org tags based whitelist. You'll get notified /only/ about events specified by this variable         | org-wild-notifier-tags-whitelist       | nil                         |
-| Org tags based blacklist. You'll /never/ be notified about events specified by this variable         | org-wild-notifier-tags-blacklist       | nil                         |
-| Predicate based whitelist. You'll get notified /only/ about events matched by one of these functions | org-wild-notifier-predicate-whitelist  | nil                         |
-| Predicate based blacklist. You'll /never/ be notified about events matched by one of these functions | org-wild-notifier-predicate-blacklist  | nil                         |
-| Property which adds additional notifications                                                         | org-wild-notifier-alert-times-property | WILD_NOTIFIER_NOTIFY_BEFORE |
+| Description                                                              | Variable                               | Default value               |
+|--------------------------------------------------------------------------+----------------------------------------+-----------------------------|
+| Alert time in minutes                                                    | org-wild-notifier-alert-time           | '(10)                       |
+| Title of notifications                                                   | org-wild-notifier-notification-title   | Agenda                      |
+| Notifications icon                                                       | org-wild-notifier-notification-icon    | nil                         |
+| Keyword whitelist (only notify for these)                                | org-wild-notifier-keyword-whitelist    | '("TODO")                   |
+| Keyword blacklist (never notify for these)                               | org-wild-notifier-keyword-blacklist    | nil                         |
+| Tags whitelist (only notify for these)                                   | org-wild-notifier-tags-whitelist       | nil                         |
+| Tags blacklist (never notify for these)                                  | org-wild-notifier-tags-blacklist       | nil                         |
+| Predicate whitelist (only notify when a predicate matches)               | org-wild-notifier-predicate-whitelist  | nil                         |
+| Predicate blacklist (never notify when a predicate matches)              | org-wild-notifier-predicate-blacklist  | nil                         |
+| Property for additional notification times                               | org-wild-notifier-alert-times-property | WILD_NOTIFIER_NOTIFY_BEFORE |
 
+*** Predicate Filters
 
-~org-wild-notifier-predicate-whitelist~ and
-~org-wild-notifier-predicate-blacklist~ are lists of functions that take a
-single parameter, which is a marker on an Org event. For example, to not receive
-notifications for Org habits:
+~org-wild-notifier-predicate-whitelist~ and ~org-wild-notifier-predicate-blacklist~ are lists of functions that take a marker pointing to an Org entry. For example, to exclude Org habits from notifications:
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC emacs-lisp
   (setq org-wild-notifier-predicate-blacklist
     '((lambda (marker)
         (-contains? (org-entry-properties marker 'all)
                     '("STYLE" . "habit")))))
 #+END_SRC
 
-~org-wild-notifier-alert-times-property~ demands further explanations.
+*** Per-Entry Notification Times
 
-Let's suppose you have an important event. One standard 10-minute notification
-is not enough. Fear not, let's modify our Org entry.
+You can specify additional notification times for individual entries using the ~WILD_NOTIFIER_NOTIFY_BEFORE~ property:
 
 #+BEGIN_SRC org
 * TODO Visit the chocolate factory
@@ -61,28 +53,19 @@ is not enough. Fear not, let's modify our Org entry.
   :END:
 #+END_SRC
 
-With such configuration you'll get notifications 80, 60, 55, 43, *10*
-and 5 minutes before the event.
+With this configuration, you'll receive notifications at 80, 60, 55, 43, 10 (the default), and 5 minutes before the event.
 
-*** How do I customize alerts?
+*** Customizing Alert Styles
 
-As ~org-alert~, this package is based on [[https://github.com/jwiegley/alert][alert]] package. Alert offers a
-wide range of customizations through it's [[https://github.com/jwiegley/alert#builtin-alert-styles][styles]] facility.
-Good examples on how to define your own styles can be found in alert
-source code.
-A bad example on how to define your own styles can be found [[https://github.com/akhramov/emacs.d/blob/master/packages/wild-notifier.el][here]].
+This package uses the [[https://github.com/jwiegley/alert][alert]] package for notifications. You can customize notification appearance using alert's [[https://github.com/jwiegley/alert#builtin-alert-styles][styles]] facility. See the alert source code for examples of defining custom styles.
 
+** Installation
 
-** How do I install the package?
-This package is available on [[http://melpa.milkbox.net/][MELPA]].
+This package is available on [[https://melpa.org][MELPA]].
 
-** How do I use the package?
+** Usage
 
-This package works in two modes:
-- Automatic mode: you can toggle timer-based minor mode by invoking
-  ~org-wild-notifier-mode~.
-- Manual mode: user runs checks by invoking ~org-wild-notifier-check~.
+org-wild-notifier operates in two modes:
 
-** Wait. Wild?
-
-What'd you expect? I have literally no imagination.
+- *Automatic mode:* Enable ~org-wild-notifier-mode~ to check for upcoming events once per minute.
+- *Manual mode:* Call ~org-wild-notifier-check~ to perform a one-time check.
