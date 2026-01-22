@@ -12,7 +12,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
 
         # Emacs with required packages for testing
-        emacsWithPackages = pkgs.emacs.pkgs.withPackages (epkgs: with epkgs; [
+        emacsWithPackages = (pkgs.emacsPackagesFor pkgs.emacs).emacsWithPackages (epkgs: with epkgs; [
           dash
           alert
           async
@@ -22,11 +22,12 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             emacsWithPackages
+            pkgs.just
           ];
 
           shellHook = ''
             echo "org-wild-notifier.el development environment"
-            echo "Run 'make test' to run tests"
+            echo "Run 'just test' to run tests"
           '';
         };
 

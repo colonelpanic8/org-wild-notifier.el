@@ -241,7 +241,8 @@ minutes)"
   "Tests that NOTIFY_AT property triggers notification at absolute time"
   :time "14:30"
   :expected-alerts
-  ("TODO event with absolute notification time (scheduled reminder)"))
+  ("TODO event with all notification types (scheduled reminder)"
+   "TODO event with absolute notification time (scheduled reminder)"))
 
 (org-wild-notifier-test notify-at-multiple-times
   "Tests that NOTIFY_AT property supports multiple timestamps"
@@ -267,3 +268,29 @@ minutes)"
   :time "14:30"
   :overrides ((org-wild-notifier-notify-at-property "CUSTOM_NOTIFY_AT"))
   :expected-alerts ())
+
+(org-wild-notifier-test notify-at-with-default-notification
+  "Tests that NOTIFY_AT event also fires default notification at scheduled time"
+  :time "17:50"
+  :expected-alerts
+  ("TODO event with all notification types at 18:00 (in 10 minutes)"
+   "TODO event with absolute notification time at 18:00 (in 10 minutes)"))
+
+(org-wild-notifier-test notify-at-and-notify-before-combined
+  "Tests that an event with both NOTIFY_AT and NOTIFY_BEFORE fires all notification types"
+  :time "14:30"
+  :expected-alerts
+  ("TODO event with all notification types (scheduled reminder)"
+   "TODO event with absolute notification time (scheduled reminder)"))
+
+(org-wild-notifier-test notify-at-and-notify-before-combined-relative
+  "Tests that NOTIFY_BEFORE fires for event with NOTIFY_AT"
+  :time "17:15"
+  :expected-alerts
+  ("TODO event with all notification types at 18:00 (in 45 minutes)"))
+
+(org-wild-notifier-test deadline-notification-separate-from-scheduled
+  "Tests that deadline fires separately from scheduled time"
+  :time "16:50"
+  :expected-alerts
+  ("TODO event scheduled on 16:00 with deadline at 17:00 at 17:00 (in 10 minutes)"))
