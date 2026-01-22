@@ -30,8 +30,10 @@
 (require 'subr-x)
 
 (defun async-start (fn callback)
-  (->> (funcall fn)
-       (funcall callback)))
+  ;; Mock package-initialize to be a no-op for testing (it's slow and unnecessary)
+  (cl-letf (((symbol-function 'package-initialize) #'ignore))
+    (->> (funcall fn)
+         (funcall callback))))
 
 (cl-defmacro org-wild-notifier-test
     (test-name desc
@@ -54,6 +56,14 @@
                 ((symbol-function 'alert)
                  (lambda (msg &rest _)
                    (setf registered-alerts (push msg registered-alerts))))
+                ;; Set consistent defaults for testing
+                (org-wild-notifier-display-time-format-string "%H:%M")
+                (org-wild-notifier-keyword-whitelist '("TODO"))
+                (org-wild-notifier-keyword-blacklist nil)
+                (org-wild-notifier-tags-whitelist nil)
+                (org-wild-notifier-tags-blacklist nil)
+                (org-wild-notifier-predicate-whitelist nil)
+                (org-wild-notifier-predicate-blacklist '(org-wild-notifier-done-keywords-predicate))
                 ,@overrides)
        (progn
          (org-wild-notifier-check)
@@ -121,15 +131,16 @@
   "Tests that user receives notifications on day-wide (w/o specified time) \
 events"
   :time "14:59"
-  :overrides ((org-wild-notifier--day-wide-events t))
+  :overrides ((org-wild-notifier-day-wide-alert-times '("14:59")))
   :expected-alerts
-  ("TODO event scheduled on today at 00:00 (right now)"))
+  ("TODO event scheduled on today is due or scheduled today"
+   "TODO event scheduled on today's noon is due or scheduled today"))
 
 (org-wild-notifier-test next-day-events
   "Tests that user receives notifications on next day events"
   :time "23:50"
   :expected-alerts
-  ("TODO event scheduled on tomorrow at 00:00 (in 10 minutes)"))
+  ("TODO event scheduled on tomorrow at midnight at 00:00 (in 10 minutes)"))
 
 (org-wild-notifier-test keyword-whitelist
   "Tests that whitelist option filters out events."
@@ -144,7 +155,8 @@ minutes)"
 (org-wild-notifier-test keyword-whitelist-disabled
   "Tests that whitelist option can be disabled"
   :time "15:50"
-  :overrides ((org-wild-notifier-keyword-whitelist nil))
+  :overrides ((org-wild-notifier-keyword-whitelist nil)
+              (org-wild-notifier-predicate-blacklist nil))
   :expected-alerts
   ("event with raw date at 16:00 at 16:00 (in 10 minutes)"
    "TODO event at 16:00 with NOTIFY_BEFORE property set to 31 at 16:00 (in 10 minutes)"
@@ -158,7 +170,8 @@ minutes)"
 (org-wild-notifier-test keyword-whitelist-with-two-items
   "Tests that whitelist option can contain more than one items"
   :time "15:50"
-  :overrides ((org-wild-notifier-keyword-whitelist '("IN PROGRESS" "DONE")))
+  :overrides ((org-wild-notifier-keyword-whitelist '("IN PROGRESS" "DONE"))
+              (org-wild-notifier-predicate-blacklist nil))
   :expected-alerts
   ("IN PROGRESS event at 16:00 at 16:00 (in 10 minutes)"
    "DONE event at 16:00 at 16:00 (in 10 minutes)"))
@@ -219,4 +232,38 @@ minutes)"
 (org-wild-notifier-test non-existent-fixture
   "Tests that it doesn't hang if there's a non-existent agenda file."
   :fixture "bad.org"
+  :overrides ((org-agenda-skip-unavailable-files t))
+  :expected-alerts ())
+
+;;; Tests for WILD_NOTIFIER_NOTIFY_AT property (absolute notification times)
+
+(org-wild-notifier-test notify-at-single-time
+  "Tests that NOTIFY_AT property triggers notification at absolute time"
+  :time "14:30"
+  :expected-alerts
+  ("TODO event with absolute notification time (scheduled reminder)"))
+
+(org-wild-notifier-test notify-at-multiple-times
+  "Tests that NOTIFY_AT property supports multiple timestamps"
+  :time "15:00"
+  :expected-alerts
+  ("TODO event at 16:00 with notifications before 80, 60, 55, 43 and 5 at 16:00 (in 60 minutes)"
+   "TODO event with multiple absolute notification times (scheduled reminder)"))
+
+(org-wild-notifier-test notify-at-multiple-times-second
+  "Tests that second NOTIFY_AT timestamp also triggers"
+  :time "15:30"
+  :expected-alerts
+  ("TODO event with multiple absolute notification times (scheduled reminder)"))
+
+(org-wild-notifier-test notify-at-repeating
+  "Tests that repeating NOTIFY_AT timestamps work"
+  :time "16:00"
+  :expected-alerts
+  ("TODO event with repeating absolute notification (scheduled reminder)"))
+
+(org-wild-notifier-test notify-at-custom-property
+  "Tests that NOTIFY_AT property name can be customized"
+  :time "14:30"
+  :overrides ((org-wild-notifier-notify-at-property "CUSTOM_NOTIFY_AT"))
   :expected-alerts ())

@@ -31,3 +31,20 @@
    SCHEDULED: <2018-01-04 Thu 00:00>
 ** TODO TODO event scheduled on tomorrow
    SCHEDULED: <2018-01-05 Fri>
+** TODO TODO event scheduled on tomorrow at midnight
+   SCHEDULED: <2018-01-05 Fri 00:00>
+** TODO TODO event with absolute notification time
+   SCHEDULED: <2018-01-04 Thu 18:00>
+   :PROPERTIES:
+   :WILD_NOTIFIER_NOTIFY_AT: <2018-01-04 Thu 14:30>
+   :END:
+** TODO TODO event with multiple absolute notification times
+   SCHEDULED: <2018-01-04 Thu 20:00>
+   :PROPERTIES:
+   :WILD_NOTIFIER_NOTIFY_AT: <2018-01-04 Thu 15:00> <2018-01-04 Thu 15:30>
+   :END:
+** TODO TODO event with repeating absolute notification
+   SCHEDULED: <2018-01-08 Mon 10:00>
+   :PROPERTIES:
+   :WILD_NOTIFIER_NOTIFY_AT: <2018-01-04 Thu 16:00 +1d>
+   :END:

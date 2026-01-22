@@ -70,6 +70,16 @@ to an event."
   :group 'org-wild-notifier
   :type 'string)
 
+(defcustom org-wild-notifier-notify-at-property "WILD_NOTIFIER_NOTIFY_AT"
+  "Property for absolute notification times.
+Value should be one or more org timestamps, e.g.:
+  <2024-01-21 14:30>
+  <2024-01-21 14:30> <2024-01-22 09:00>
+  <2024-01-21 14:30 +1d>  ; repeating daily"
+  :package-version '(org-wild-notifier . "0.5.0")
+  :group 'org-wild-notifier
+  :type 'string)
+
 (defcustom org-wild-notifier-notification-title "Agenda"
   "Notifications title."
   :package-version '(org-wild-notifier . "0.1.0")
@@ -294,11 +304,23 @@ Returns a list of time information interval pairs."
   (format "%s is due or scheduled today"
           (cdr (assoc 'title event))))
 
+(defun org-wild-notifier--check-notify-at (event)
+  "Check if any absolute notification times in EVENT match now.
+Returns list of notification messages."
+  (--keep
+   (when (org-wild-notifier--time= it (current-time))
+     (format "%s (scheduled reminder)" (cdr (assoc 'title event))))
+   (cdr (assoc 'notify-at event))))
+
 (defun org-wild-notifier--check-event (event)
   "Get notifications for given EVENT.
 Returns a list of notification messages"
-  (->> (org-wild-notifier--notifications event)
-       (--map (org-wild-notifier--notification-text `(,(caar it) . ,(cadr it)) event))))
+  (append
+   ;; Relative time notifications
+   (->> (org-wild-notifier--notifications event)
+        (--map (org-wild-notifier--notification-text `(,(caar it) . ,(cadr it)) event)))
+   ;; Absolute time notifications
+   (org-wild-notifier--check-notify-at event)))
 
 (defun org-wild-notifier--get-tags (marker)
   "Retrieve tags of MARKER."
@@ -374,7 +396,8 @@ Returns a list of notification messages"
                  "org-wild-notifier-tags-whitelist"
                  "org-wild-notifier-tags-blacklist"
                  "org-wild-notifier-predicate-whitelist"
-                 "org-wild-notifier-predicate-blacklist")))
+                 "org-wild-notifier-predicate-blacklist"
+                 "org-wild-notifier-notify-at-property")))
         string-end)))
 
 
@@ -462,12 +485,64 @@ standard notification interval (`org-wild-notifier-alert-time')."
             marker
             org-wild-notifier-alert-times-property))))
 
+(defun org-wild-notifier--parse-notify-at-timestamp (timestamp)
+  "Parse TIMESTAMP for NOTIFY_AT property.
+Unlike `org-wild-notifier--timestamp-parse', this parses the timestamp
+literally using `current-time' as the reference for repeating timestamps,
+rather than the real system time."
+  (let* ((parsed (org-parse-time-string timestamp))
+         (base-time (encode-time 0
+                                 (decoded-time-minute parsed)
+                                 (decoded-time-hour parsed)
+                                 (decoded-time-day parsed)
+                                 (decoded-time-month parsed)
+                                 (decoded-time-year parsed))))
+    ;; Handle repeating timestamps by finding the closest occurrence to current-time
+    (if (string-match "\\+[0-9]+[dwmy]" timestamp)
+        ;; Repeating timestamp - find closest occurrence to (current-time)
+        (let* ((repeat-match (match-string 0 timestamp))
+               (repeat-num (string-to-number (substring repeat-match 1 -1)))
+               (repeat-unit (substring repeat-match -1))
+               (current (current-time))
+               (candidate base-time))
+          ;; Advance candidate until it's >= current-time or close to it
+          (while (time-less-p candidate current)
+            (pcase repeat-unit
+              ("d" (setq candidate (time-add candidate (* repeat-num 86400))))
+              ("w" (setq candidate (time-add candidate (* repeat-num 7 86400))))
+              ("m" (let ((decoded (decode-time candidate)))
+                     (setf (decoded-time-month decoded)
+                           (+ (decoded-time-month decoded) repeat-num))
+                     (setq candidate (encode-time decoded))))
+              ("y" (let ((decoded (decode-time candidate)))
+                     (setf (decoded-time-year decoded)
+                           (+ (decoded-time-year decoded) repeat-num))
+                     (setq candidate (encode-time decoded))))))
+          candidate)
+      ;; Non-repeating timestamp - return as-is
+      base-time)))
+
+(defun org-wild-notifier--extract-notify-at-times (marker)
+  "Extract absolute notification timestamps from MARKER.
+Returns list of parsed time values for any org timestamps found
+in the WILD_NOTIFIER_NOTIFY_AT property."
+  (when-let ((prop-value (org-entry-get marker org-wild-notifier-notify-at-property)))
+    (let ((timestamps nil)
+          (start 0))
+      (while (string-match org-ts-regexp prop-value start)
+        (let ((matched-ts (match-string 0 prop-value))
+              (match-end-pos (match-end 0)))
+          (push (org-wild-notifier--parse-notify-at-timestamp matched-ts) timestamps)
+          (setq start match-end-pos)))
+      (nreverse timestamps))))
+
 (defun org-wild-notifier--gather-info (marker)
   "Collect information about an event.
 MARKER acts like event's identifier."
   `((times . (,(org-wild-notifier--extract-time marker)))
     (title . ,(org-wild-notifier--extract-title marker))
-    (intervals . ,(org-wild-notifier--extract-notication-intervals marker))))
+    (intervals . ,(org-wild-notifier--extract-notication-intervals marker))
+    (notify-at . ,(org-wild-notifier--extract-notify-at-times marker))))
 
 (defun org-wild-notifier--stop ()
   "Stops the notification timer and cancel any in-progress checks."
@@ -526,6 +601,44 @@ if needed."
   (if org-wild-notifier-mode
       (org-wild-notifier--start)
     (org-wild-notifier--stop)))
+
+;;;###autoload
+(defun org-wild-notifier-schedule-at-point (minutes)
+  "Schedule a notification for the org heading at point.
+MINUTES is the number of minutes from now to trigger the notification."
+  (interactive "nMinutes until notification: ")
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not in an org-mode buffer"))
+  (let ((title (org-get-heading t t t t)))
+    (unless title
+      (user-error "Not on an org heading"))
+    (run-at-time (* minutes 60) nil
+                 (lambda (msg)
+                   (org-wild-notifier--notify msg))
+                 (format "%s (scheduled reminder)" title))
+    (message "Notification scheduled for \"%s\" in %d minute%s"
+             title minutes (if (= minutes 1) "" "s"))))
+
+;;;###autoload
+(defun org-wild-notifier-schedule-at-point-at-time (time)
+  "Schedule a notification for the org heading at point at TIME.
+TIME is a string in HH:MM format or any format accepted by `org-read-date'."
+  (interactive
+   (list (org-read-date nil nil nil "Notification time: ")))
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not in an org-mode buffer"))
+  (let* ((title (org-get-heading t t t t))
+         (target-time (org-read-date nil t time)))
+    (unless title
+      (user-error "Not on an org heading"))
+    (when (time-less-p target-time (current-time))
+      (user-error "Cannot schedule notification in the past"))
+    (run-at-time target-time nil
+                 (lambda (msg)
+                   (org-wild-notifier--notify msg))
+                 (format "%s (scheduled reminder)" title))
+    (message "Notification scheduled for \"%s\" at %s"
+             title (format-time-string "%Y-%m-%d %H:%M" target-time))))
 
 (provide 'org-wild-notifier)
 
