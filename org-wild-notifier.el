@@ -117,6 +117,14 @@ Leave this variable blank if you do not want to filter anything."
   :group 'org-wild-notifier
   :type '(repeat string))
 
+(defcustom org-wild-notifier-entries '("DEADLINE" "SCHEDULED" "TIMESTAMP")
+  "Timestamp entry types that trigger notifications.
+Only timestamps of these types will be considered for notifications.
+Valid values are \"DEADLINE\", \"SCHEDULED\", and \"TIMESTAMP\"."
+  :package-version '(org-wild-notifier . "0.3.1")
+  :group 'org-wild-notifier
+  :type '(repeat string))
+
 (defcustom org-wild-notifier-display-time-format-string "%I:%M %p"
   "Format string for `format-time-string' when displaying times."
   :package-version '(org-wild-notifier . "0.5.0")
@@ -466,7 +474,7 @@ string, cdr holds time in list-of-integer format."
       (and org-timestamp
            (cons org-timestamp
                  (org-wild-notifier--timestamp-parse org-timestamp))))
-    '("DEADLINE" "SCHEDULED" "TIMESTAMP"))))
+    org-wild-notifier-entries)))
 
 (defun org-wild-notifier--extract-title (marker)
   "Extract event title from MARKER.
