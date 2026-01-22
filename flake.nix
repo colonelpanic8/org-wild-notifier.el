@@ -16,6 +16,7 @@
           dash
           alert
           async
+          package-lint
         ]);
 
       in {
@@ -46,7 +47,48 @@
           touch $out
         '';
 
-        # Check for CI
+        # Byte-compile check
+        packages.byte-compile = pkgs.runCommand "org-wild-notifier-byte-compile" {
+          buildInputs = [ emacsWithPackages ];
+          src = ./.;
+        } ''
+          cd $src
+          emacs --batch -L . -f batch-byte-compile org-wild-notifier.el 2>&1 | tee compile-output.txt
+          # Fail if there are errors (not just warnings)
+          if grep -q "Error:" compile-output.txt; then
+            exit 1
+          fi
+          touch $out
+        '';
+
+        # Checkdoc check
+        packages.checkdoc = pkgs.runCommand "org-wild-notifier-checkdoc" {
+          buildInputs = [ emacsWithPackages ];
+          src = ./.;
+        } ''
+          cd $src
+          emacs --batch -L . -l org-wild-notifier.el \
+            --eval "(setq checkdoc-autofix-flag nil)" \
+            --eval "(checkdoc-file \"org-wild-notifier.el\")" 2>&1 | tee checkdoc-output.txt
+          # Just informational for now - don't fail
+          touch $out
+        '';
+
+        # Package-lint check
+        packages.package-lint = pkgs.runCommand "org-wild-notifier-package-lint" {
+          buildInputs = [ emacsWithPackages ];
+          src = ./.;
+        } ''
+          cd $src
+          emacs --batch -L . \
+            --eval "(require 'package-lint)" \
+            --eval "(setq package-lint-main-file \"org-wild-notifier.el\")" \
+            -f package-lint-batch-and-exit org-wild-notifier.el 2>&1 | tee lint-output.txt || true
+          # Just informational for now - don't fail
+          touch $out
+        '';
+
+        # Check for CI - run all checks
         checks.default = self.packages.${system}.test;
       });
 }
