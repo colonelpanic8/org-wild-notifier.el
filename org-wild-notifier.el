@@ -5,7 +5,7 @@
 
 ;; Author: Artem Khramov <akhramov+emacs@pm.me>
 ;; Created: 6 Jan 2017
-;; Version: 0.6.0
+;; Version: 0.7.0
 ;; Package-Requires: ((alert "1.2") (async "1.9.3") (dash "2.18.0") (emacs "27.1"))
 ;; Keywords: calendar, convenience
 ;; URL: https://github.com/emacsorphanage/org-wild-notifier.el
